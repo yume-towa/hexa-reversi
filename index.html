@@ -490,7 +490,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 function applyRuleText(){
   $('ruleA').innerHTML='相手の石の辺のうち<b>2つ以上</b>が自分の石になると、その石は自分の色に変わります（盤の外側のマスは辺が2つなので、2つとも）。';
-  $('ruleB').innerHTML='オセロと同じく、<b>列にそって相手の石を挟む</b>とひっくり返ります。列は▲▼が交互に並ぶ帯で、縦と斜め2方向の3方向です。';
+  $('ruleB').innerHTML='普通のリバーシと同じく、<b>列にそって相手の石を挟む</b>とひっくり返ります。列は▲▼が交互に並ぶ帯で、縦と斜め2方向の3方向です。';
 }
 function reset(){
   gameId++;                       // 進行中のアニメーションやCPUの手番を打ち切る
