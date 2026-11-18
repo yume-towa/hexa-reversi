@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>六角形リバーシ</title>
+<style>
+  :root{
+    --bg:#f4efe4; --ink:#2b2a27; --muted:#7a756a; --line:#d8cfbd;
+    --felt:#4f8a2a; --felt2:#5a9632; --grid:#1f3a0c; --wood:#6b4a2b;
+    --accent:#c0392b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+    -webkit-tap-highlight-color:transparent}
+  .wrap{max-width:560px;margin:0 auto;padding:14px 12px 40px}
+  h1{font-size:22px;font-weight:600;text-align:center;letter-spacing:.08em}
+  .bar{display:flex;gap:8px;align-items:stretch;margin-bottom:10px}
+  .side{flex:1;display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;
+    background:#fff;border:2px solid transparent;transition:border-color .2s, box-shadow .2s}
+  .side.turn{border-color:var(--accent);box-shadow:0 2px 0 rgba(0,0,0,.06)}
+  .disc{width:26px;height:26px;border-radius:50%;flex:none}
+  .disc.b{background:#222;box-shadow:inset 0 -3px 0 rgba(255,255,255,.12)}
+  .disc.w{background:#fff;border:1.5px solid #333;box-shadow:inset 0 -3px 0 rgba(0,0,0,.08)}
+  .side .name{font-size:13px;color:var(--muted);line-height:1.2}
+  .side .num{font-size:24px;font-weight:700;margin-left:auto;font-variant-numeric:tabular-nums}
+  .msg{min-height:26px;text-align:center;font-size:15px;margin:2px 0 8px}
+  .msg b{color:var(--accent)}
+  .board-frame{background:var(--wood);border-radius:18px;padding:10px;
+    box-shadow:inset 0 0 0 3px rgba(0,0,0,.18), 0 4px 10px rgba(0,0,0,.12);position:relative}
+  svg{display:block;width:100%;height:auto;touch-action:manipulation;user-select:none}
+  .cell{fill:var(--felt);stroke:var(--grid);stroke-width:.025;stroke-linejoin:round}
+  .cell.up{fill:var(--felt2)}
+  .cell.legal{cursor:pointer}
+  .cell.legal:hover{fill:#77b04a}
+  .dot{fill:rgba(0,0,0,.28);pointer-events:none}
+  .stone{pointer-events:none;transform-box:fill-box;transform-origin:center}
+  .stone.b{fill:#1f1f1f;stroke:#000;stroke-width:.012}
+  .stone.w{fill:#fafafa;stroke:#222;stroke-width:.018}
+  .stone.ghost{opacity:.45}
+  .stone.pop{animation:pop .22s ease-out}
+  .stone.flip{animation:flip .32s ease-in-out}
+  @keyframes pop{0%{transform:scale(.2)}70%{transform:scale(1.12)}100%{transform:scale(1)}}
+  @keyframes flip{0%{transform:scaleX(1)}50%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+  .ring{fill:none;stroke:#ffd23f;stroke-width:.05;pointer-events:none}
+  .last{fill:var(--accent);pointer-events:none}
+  .chain{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) scale(.6);
+    font-size:40px;font-weight:800;color:#fff;letter-spacing:.05em;
+    text-shadow:0 3px 0 #b8321f,0 0 14px rgba(0,0,0,.4);opacity:0;pointer-events:none}
+  .chain.show{animation:chain .9s ease-out}
+  @keyframes chain{0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}
+    20%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}
+    70%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+    100%{opacity:0;transform:translate(-50%,-60%) scale(1)}}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;justify-content:center}
+  select,button{font:inherit;font-size:14px;padding:9px 12px;border-radius:10px;
+    border:1px solid var(--line);background:#fff;color:var(--ink)}
+  button{cursor:pointer}
+  button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+  button:disabled{opacity:.4;cursor:default}
+  details{margin-top:16px;background:#fff;border-radius:12px;padding:10px 14px;border:1px solid var(--line)}
+  summary{cursor:pointer;font-weight:600}
+  details ul{padding-left:1.2em;margin:8px 0 2px;line-height:1.7;font-size:14px}
+  .result{display:none;align-items:center;justify-content:space-between;gap:12px;
+    background:#fff;border:2px solid var(--accent);border-radius:14px;padding:10px 14px;margin:0 0 10px}
+  .result.show{display:flex;animation:resIn .35s ease-out}
+  @keyframes resIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  .result .big{font-size:22px;font-weight:800;line-height:1.2}
+  .result .sub{color:var(--muted);font-size:14px}
+  body.honey .result{background:#fffaf0}
+
+  /* ===== 蜂の巣スキン ===== */
+  .comb,.combEdge{fill:none;pointer-events:none;display:none}
+  body.honey{--bg:#fff4d6;--ink:#3b2608;--muted:#8a6a35;--line:#ecd39a;
+    --felt:#f6b62a;--felt2:#eba51a;--grid:#c9850e;--accent:#c4421a}
+  body.honey .board-frame{background:#6e400e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17.32' height='30' viewBox='0 0 17.32 30'%3E%3Cpath d='M8.66 0L17.32 5V15L8.66 20L0 15V5ZM8.66 20V30' fill='none' stroke='%23ffd979' stroke-opacity='.22' stroke-width='1.2'/%3E%3C/svg%3E") repeat;background-size:26px 45px;
+    box-shadow:inset 0 0 0 3px rgba(0,0,0,.25),0 4px 12px rgba(120,70,0,.25)}
+  body.honey .cell{stroke:rgba(160,95,5,.35);stroke-width:.012}
+  body.honey .cell.legal:hover{fill:#ffd45c}
+  body.honey .comb{display:inline;stroke:#fff0b3;stroke-width:.1;stroke-linejoin:round}
+  body.honey .combEdge{display:inline;stroke:#8a5410;stroke-width:.14;stroke-linejoin:round}
+  body.honey .dot{fill:rgba(110,55,0,.38)}
+  body.honey .stone.b{fill:#3a220b;stroke:#1a0e03}
+  body.honey .stone.w{fill:#fffaf0;stroke:#9a6612}
+  body.honey .ring{stroke:#c4421a}
+  body.honey .disc.b{background:#3a220b}
+  body.honey .disc.w{background:#fffaf0;border-color:#9a6612}
+  body.honey .side{background:#fffaf0}
+
+  .stone .h3{display:none}
+  body.honey .stone .sc{display:none}
+  body.honey .stone .h3{display:inline}
+  .h3 polygon{stroke-linejoin:round}
+  .h3 .hsh{fill:rgba(70,35,0,.38);stroke:none}
+  .h3 .bv{stroke-width:.004}
+  .h3 .hrim{fill:none;stroke-width:.012}
+  .h3 .hspec{fill:url(#gSpec);stroke:none}
+  .h3 .hspec2{fill:#fff;fill-opacity:.35;stroke:none}
+  .stone.b .htop{fill:url(#gTopB);stroke:none}
+  .stone.b .hrim{stroke:#120900}
+  .stone.b .bv5{fill:#946128}.stone.b .bv4{fill:#74481a}.stone.b .bv0{fill:#5a3612}
+  .stone.b .bv3{fill:#33200a}.stone.b .bv1{fill:#271605}.stone.b .bv2{fill:#170c02}
+  .stone.b .bv{stroke:#2a1806}
+  .stone.b .hspec{opacity:.6}
+  .stone.w .htop{fill:url(#gTopW);stroke:none}
+  .stone.w .hrim{stroke:#9a6612}
+  .stone.w .bv5{fill:#ffffff}.stone.w .bv4{fill:#fffbeb}.stone.w .bv0{fill:#fbe8bb}
+  .stone.w .bv3{fill:#e9c47a}.stone.w .bv1{fill:#ddb062}.stone.w .bv2{fill:#c99843}
+  .stone.w .bv{stroke:#e6c27a}
+  .stone.w .hspec2{fill:#c99843;fill-opacity:.25}
+  body.honey .disc{border-radius:0;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+  body.honey .disc.b{background:#3a220b}
+  body.honey .disc.w{background:#b07a1c;border:none;box-shadow:none;position:relative}
+  body.honey .disc.w::after{content:"";position:absolute;inset:2px;background:#fff6dc;
+    clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(135deg,#fff 0%,#fff3d2 55%,#e6c27a 100%)}
+
+  .titlebar{position:relative;margin:4px 0 10px}
+  .titlebar h1{margin:0;padding:0 62px;line-height:56px}
+  .bee{position:absolute;right:0;top:50%;transform:translateY(-50%);width:60px;height:56px;padding:0;
+    border:none;background:none;cursor:pointer;border-radius:12px}
+  .bee svg{width:100%;height:100%;display:block;transform-origin:50% 60%;animation:hover 2.4s ease-in-out infinite}
+  .bee:focus-visible{outline:2px solid var(--accent)}
+  .bee .wings{transform-box:fill-box;transform-origin:50% 100%;animation:flap .28s ease-in-out infinite alternate}
+  @keyframes flap{to{transform:scaleY(.72)}}
+  .bee.buzz svg{animation:buzz .5s ease-in-out}
+  body.honey .bee{background:rgba(255,201,40,.25)}
+  @keyframes hover{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-3px) rotate(4deg)}}
+  @keyframes buzz{0%{transform:rotate(0) scale(1)}20%{transform:rotate(-14deg) scale(1.12)}40%{transform:rotate(12deg) scale(1.12)}
+    60%{transform:rotate(-8deg) scale(1.06)}80%{transform:rotate(5deg)}100%{transform:rotate(0) scale(1)}}
+  @media (prefers-reduced-motion:reduce){.bee svg,.bee .wings{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="titlebar">
+    <h1>六角形リバーシ</h1>
+    <button class="bee" id="bee" aria-label="蜂の巣の盤面に切り替え" title="蜂の巣の盤面に切り替え">
+      <svg viewBox="0 0 64 62" aria-hidden="true">
+        <g transform="translate(10 1) scale(.84)">
+        <defs><clipPath id="beeBody"><ellipse cx="34" cy="34" rx="21" ry="18"/></clipPath></defs>
+        <g class="wings">
+          <ellipse cx="27" cy="13" rx="10" ry="8.5" transform="rotate(-22 27 13)" fill="#e3f4ff" stroke="#3a2a1a" stroke-width="2.2"/>
+          <ellipse cx="43" cy="12" rx="9.5" ry="8" transform="rotate(22 43 12)" fill="#e3f4ff" stroke="#3a2a1a" stroke-width="2.2"/>
+          <ellipse cx="24" cy="10.5" rx="3.2" ry="1.6" transform="rotate(-22 24 10.5)" fill="#fff"/>
+          <ellipse cx="45" cy="9.5" rx="3" ry="1.5" transform="rotate(22 45 9.5)" fill="#fff"/>
+        </g>
+        <path d="M17 18 Q12 11 10 6" fill="none" stroke="#3a2a1a" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M26 16.5 Q26 9 29 4.5" fill="none" stroke="#3a2a1a" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="9.6" cy="5.4" r="3" fill="#ff8fa3" stroke="#3a2a1a" stroke-width="1.8"/>
+        <circle cx="29.4" cy="4.2" r="3" fill="#ff8fa3" stroke="#3a2a1a" stroke-width="1.8"/>
+        <path d="M54.5 31 Q61 34 54.5 38 Z" fill="#3a2a1a" stroke="#3a2a1a" stroke-width="1.5" stroke-linejoin="round"/>
+        <ellipse cx="34" cy="34" rx="21" ry="18" fill="#ffd43b"/>
+        <g clip-path="url(#beeBody)" fill="#3a2a1a">
+          <path d="M37 14 Q34 34 37 54 L43.5 54 Q40.5 34 43.5 14 Z"/>
+          <path d="M48 14 Q45 34 48 54 L55 54 L55 14 Z"/>
+        </g>
+        <ellipse cx="34" cy="34" rx="21" ry="18" fill="none" stroke="#3a2a1a" stroke-width="2.4"/>
+        <ellipse cx="22" cy="22.5" rx="4.5" ry="2.2" transform="rotate(-25 22 22.5)" fill="#fff" opacity=".75"/>
+        <circle cx="20.5" cy="32.5" r="2.3" fill="#3a2a1a"/>
+        <circle cx="29.5" cy="32.5" r="2.3" fill="#3a2a1a"/>
+        <ellipse cx="15.8" cy="38" rx="3" ry="1.9" fill="#ff8fa3" opacity=".85"/>
+        <ellipse cx="34.2" cy="38" rx="3" ry="1.9" fill="#ff8fa3" opacity=".85"/>
+        <path d="M22.6 37.6 Q25 40.6 27.4 37.6" fill="none" stroke="#3a2a1a" stroke-width="1.8" stroke-linecap="round"/>
+        </g>
+        <path d="M31 39.6 Q30.2 43.2 27 44.4" fill="none" stroke="#3a2a1a" stroke-width="2.4" stroke-linecap="round"/>
+        <g class="pot" transform="translate(5 -2)">
+          <ellipse cx="14" cy="50.5" rx="10.5" ry="8.5" fill="#b8763a" stroke="#3a2a1a" stroke-width="2.2"/>
+          <ellipse cx="9.6" cy="49" rx="2.4" ry="3.6" transform="rotate(20 9.6 49)" fill="#fff" opacity=".3"/>
+          <path d="M5.5 43.6 Q14 40 22.5 43.6 Q22.8 46 21.6 46.6 Q14 44.4 6.4 46.6 Q5.2 46 5.5 43.6 Z" fill="#8a5222" stroke="#3a2a1a" stroke-width="2" stroke-linejoin="round"/>
+          <ellipse cx="14" cy="43.2" rx="6.8" ry="1.9" fill="#ffc928"/>
+          <path d="M16.6 43.8 Q17.6 47 17.4 50.2 A1.6 1.6 0 0 1 14.3 50.4 Q14.5 47.2 13.6 44.1 Z" fill="#ffc928"/>
+          <circle cx="15.9" cy="53.6" r="1.1" fill="#ffc928"/>
+        </g>
+        <circle cx="26.8" cy="44.6" r="2" fill="#3a2a1a"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="bar">
+    <div class="side" id="sideB"><div class="disc b"></div>
+      <div class="name" id="nameB">黒</div><div class="num" id="numB">3</div></div>
+    <div class="side" id="sideW"><div class="disc w"></div>
+      <div class="name" id="nameW">白</div><div class="num" id="numW">3</div></div>
+  </div>
+  <div class="msg" id="msg"></div>
+  <div class="result" id="result">
+    <div class="res-text"><div class="big" id="resBig"></div><div class="sub" id="resSub"></div></div>
+    <button class="primary" id="again">もう一度</button>
+  </div>
+
+  <div class="board-frame">
+    <svg id="board"></svg>
+  </div>
+
+  <div class="controls">
+    <select id="mode">
+      <option value="cpuW">CPUと対戦（あなたが黒・先手）</option>
+      <option value="cpuB">CPUと対戦（あなたが白・後手）</option>
+      <option value="pvp">ふたりで対戦</option>
+    </select>
+    <select id="level">
+      <option value="1">CPU：やさしい</option>
+      <option value="2" selected>CPU：ふつう</option>
+      <option value="3">CPU：つよい</option>
+    </select>
+    <button id="undo">待った</button>
+    <button class="primary" id="reset">はじめから</button>
+  </div>
+
+  <details open>
+    <summary>ルール</summary>
+    <ul>
+      <li>黒が先手。交互に1つずつ石を置きます。</li>
+      <li>置けるのは、相手の石を<b>1個以上ひっくり返せる</b>マスだけ。</li>
+      <li id="ruleA"></li>
+      <li id="ruleB"></li>
+      <li>ひっくり返るのは置いた石で挟んだ・囲んだ石だけ。返った石がさらに別の石を返すことはありません。</li>
+      <li>自分から囲まれたマスに置いた石は、その場では変わりません。</li>
+      <li>置ける場所がなければパス。全部埋まるか両者置けなくなったら終了、石の多い方の勝ち。</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+/*LOGIC_START*/
+const SQ3 = Math.sqrt(3);
+function buildBoard(){
+  const cells = [], seen = new Set();
+  const ap = 1.5 * SQ3 * 0.999;
+  const key = (x,y)=> (Math.round(x*1000)+0)+','+(Math.round(y*1000)+0);
+  for(let i=-4;i<=4;i++) for(let j=-4;j<=4;j++){
+    const hx = SQ3*(i+j/2), hy = 1.5*j;
+    const vs = [];
+    for(let a=-90;a<270;a+=60){const r=a*Math.PI/180; vs.push([hx+Math.cos(r), hy+Math.sin(r)]);}
+    for(let k=0;k<6;k++){
+      const pts=[[hx,hy],vs[k],vs[(k+1)%6]];
+      const gx=(pts[0][0]+pts[1][0]+pts[2][0])/3, gy=(pts[0][1]+pts[1][1]+pts[2][1])/3;
+      let inside=true;
+      for(let a=0;a<360;a+=60){const r=a*Math.PI/180; if(gx*Math.cos(r)+gy*Math.sin(r)>ap){inside=false;break;}}
+      if(!inside) continue;
+      const ck=key(gx,gy); if(seen.has(ck)) continue; seen.add(ck);
+      cells.push({pts, gx, gy, vkeys: pts.map(p=>key(p[0],p[1]))});
+    }
+  }
+  const n = cells.length;
+  const edgeN = cells.map(()=>[]), vertN = cells.map(()=>[]);
+  for(let a=0;a<n;a++) for(let b=a+1;b<n;b++){
+    const shared = cells[a].vkeys.filter(k=>cells[b].vkeys.includes(k)).length;
+    if(shared>=1){vertN[a].push(b);vertN[b].push(a);}
+    if(shared>=2){edgeN[a].push(b);edgeN[b].push(a);}
+  }
+  const init = new Array(n).fill(0);
+  cells.forEach((c,i)=>{
+    if(c.vkeys.includes(key(0,0))){
+      const deg = Math.round((Math.atan2(c.gy,c.gx)*180/Math.PI+360)%360);
+      init[i] = [300,60,180].includes(deg) ? 1 : 2;
+    }
+  });
+  return {cells, edgeN, vertN, init};
+}
+const G = buildBoard();
+// 3方向の「列」（▲▼が交互に並ぶ帯）を作る
+G.rays = G.cells.map(()=>[]);
+(function buildLines(){
+  const h = SQ3/2;
+  const dirs = [[0,1],[Math.cos(Math.PI/6),Math.sin(Math.PI/6)],[Math.cos(-Math.PI/6),Math.sin(-Math.PI/6)]];
+  for(const [dx,dy] of dirs){
+    const nx=-dy, ny=dx, strips=new Map();
+    G.cells.forEach((c,i)=>{
+      const k=Math.floor((c.gx*nx+c.gy*ny)/h);
+      if(!strips.has(k)) strips.set(k,[]);
+      strips.get(k).push(i);
+    });
+    for(const arr of strips.values()){
+      arr.sort((a,b)=>(G.cells[a].gx*dx+G.cells[a].gy*dy)-(G.cells[b].gx*dx+G.cells[b].gy*dy));
+      arr.forEach((cell,p)=>{
+        G.rays[cell].push(arr.slice(p+1));
+        G.rays[cell].push(arr.slice(0,p).reverse());
+      });
+    }
+  }
+})();
+
+let SANDWICH=true; // 列にそって挟む
+let RULE='two';    // 2辺以上で囲む
+function canFlip(b, idx, c){
+  const opp=3-c;
+  for(const n of G.edgeN[idx]){
+    if(b[n]!==opp) continue;
+    let own=1; for(const m of G.edgeN[n]) if(m!==idx && b[m]===c) own++;
+    if(RULE==='two' ? own>=2 : own===G.edgeN[n].length) return true;
+  }
+  if(SANDWICH) for(const ray of G.rays[idx]){
+    let k=0;
+    for(const n of ray){ if(b[n]===opp){k++;continue;} if(b[n]===c && k) return true; break; }
+  }
+  return false;
+}
+// 置けるのは「1個以上ひっくり返せる」空きマスだけ
+function legalMoves(b, c){
+  if(c===undefined) c=turn;
+  const res=[];
+  for(let i=0;i<b.length;i++) if(b[i]===0 && canFlip(b,i,c)) res.push(i);
+  return res;
+}
+function simulate(board, idx, c){
+  // 置いた石で起きる「挟む」と「2辺で囲む」だけを同時に判定（連鎖なし）
+  const b = board.slice(); b[idx]=c; const opp=3-c;
+  const flip=new Set();
+  if(SANDWICH){
+    for(const ray of G.rays[idx]){
+      const run=[];
+      for(const n of ray){
+        if(b[n]===opp) run.push(n);
+        else { if(b[n]===c && run.length) run.forEach(x=>flip.add(x)); break; }
+      }
+    }
+  }
+  for(const n of G.edgeN[idx]){
+    if(b[n]!==opp) continue;
+    const own=G.edgeN[n].filter(m=>b[m]===c).length;
+    if(RULE==='two' ? own>=2 : own===G.edgeN[n].length) flip.add(n);
+  }
+  const caught=[...flip];
+  caught.forEach(n=>b[n]=c);
+  return {b, steps: caught.length?[caught]:[], flips: caught.length};
+}
+function count(b){let x=0,y=0;for(const v of b){if(v===1)x++;else if(v===2)y++;}return [x,y];}
+
+function evalBoard(b,c){
+  let s=0;
+  for(let i=0;i<b.length;i++){
+    const col=b[i]; if(!col) continue;
+    const nb=G.edgeN[i]; let mine=0,enemy=0,empty=0;
+    for(const m of nb){ if(b[m]===col)mine++; else if(b[m]===0)empty++; else enemy++; }
+    let v=1;
+    if(RULE==='single'){
+      if(mine>0) v+=0.3;                       // くっついた石は返されない
+      else if(empty===1) v-=0.5;                // あと1手で囲まれる
+    }else{
+      if(enemy>=1 && empty>=1) v-=0.45;         // あと1手で2辺そろう
+      if(mine>=2) v+=0.1;
+    }
+    s += col===c ? v : -v;
+  }
+  return s;
+}
+function diffEval(b,c){const [x,y]=count(b);return c===1?x-y:y-x;}
+let NODES=0, NODE_LIMIT=Infinity;
+function search(b,c,depth,alpha,beta,ev){
+  if(++NODES>NODE_LIMIT) throw 'budget';
+  const moves=legalMoves(b,c);
+  if(!moves.length){
+    if(!legalMoves(b,3-c).length) return diffEval(b,c)*100;     // 終局：石の差で確定
+    return -search(b,3-c,depth,-beta,-alpha,ev);                 // パスして相手番
+  }
+  if(depth===0) return ev(b,c);
+  let best=-Infinity;
+  for(const m of moves){
+    const r=simulate(b,m,c);
+    const v=-search(r.b,3-c,depth-1,-beta,-alpha,ev);
+    if(v>best)best=v; if(best>alpha)alpha=best; if(alpha>=beta)break;
+  }
+  return best;
+}
+function bestMove(b,c,moves,depth,ev,noise){
+  let best=-Infinity, pick=moves[0];
+  // 手の並べ替え（枝刈り効率）
+  const scored=moves.map(m=>({m,r:simulate(b,m,c)})).sort((x,y)=>y.r.flips-x.r.flips);
+  for(const {m,r} of scored){
+    const v=-search(r.b,3-c,depth-1,-Infinity,Infinity,ev)+Math.random()*noise;
+    if(v>best){best=v;pick=m;}
+  }
+  return pick;
+}
+function cpuMove(b,c,level){
+  const moves=legalMoves(b,c); if(!moves.length) return -1;
+  const empty=b.filter(v=>!v).length;
+  const depth = level===1?1:(level===2?2:3);
+  const noise = level===1?1.2:(level===2?0.25:0.05);
+  // 終盤は最後まで読み切る（つよい：残り16マス以下、ふつう：12マス以下）。
+  // 時間がかかりすぎる局面では読み切りをあきらめて通常の読みに戻す
+  const endN = level===3?16:(level===2?12:0);
+  if(empty<=endN){
+    NODES=0; NODE_LIMIT = level===3?800000:150000;
+    try{ return bestMove(b,c,moves,empty,(x,y)=>diffEval(x,y)*100,0.01); }
+    catch(e){ if(e!=='budget') throw e; }
+    finally{ NODE_LIMIT=Infinity; }
+  }
+  NODES=0;
+  return bestMove(b,c,moves,depth,evalBoard,noise);
+}
+/*LOGIC_END*/
+
+// ===== UI =====
+const svg=document.getElementById('board');
+const NS='http://www.w3.org/2000/svg';
+const SCALE=1;
+(function setupSvg(){
+  const xs=G.cells.flatMap(c=>c.pts.map(p=>p[0])), ys=G.cells.flatMap(c=>c.pts.map(p=>p[1]));
+  const pad=.12, minX=Math.min(...xs)-pad, minY=Math.min(...ys)-pad;
+  svg.setAttribute('viewBox',`${minX} ${minY} ${Math.max(...xs)-minX+pad} ${Math.max(...ys)-minY+pad}`);
+})();
+const R_STONE=0.215, R_DOT=0.06;
+const layerCells=document.createElementNS(NS,'g'), layerComb=document.createElementNS(NS,'g'), layerTop=document.createElementNS(NS,'g');
+svg.append(layerCells,layerComb,layerTop);
+const els=G.cells.map((c,i)=>{
+  const poly=document.createElementNS(NS,'polygon');
+  poly.setAttribute('points',c.pts.map(p=>p.join(',')).join(' '));
+  const pointsUp = c.pts.filter(p=>p[1]<c.gy).length===1;
+  poly.setAttribute('class','cell'+(pointsUp?' up':''));
+  poly.addEventListener('click',()=>onCell(i));
+  poly.addEventListener('pointerenter',e=>{ if(e.pointerType==='mouse') preview(i); });
+  poly.addEventListener('pointerleave',e=>{ if(e.pointerType==='mouse') preview(-1); });
+  const dot=document.createElementNS(NS,'circle');
+  dot.setAttribute('cx',c.gx);dot.setAttribute('cy',c.gy);dot.setAttribute('r',R_DOT);dot.setAttribute('class','dot');
+  const stone=document.createElementNS(NS,'g'); stone.setAttribute('class','stone');
+  const sc=document.createElementNS(NS,'circle');
+  sc.setAttribute('cx',c.gx);sc.setAttribute('cy',c.gy);sc.setAttribute('r',R_STONE);sc.setAttribute('class','sc');
+  // 蜂の巣スキン用：立体的な六角形の石（面取りされた六角柱を上から見た形）
+  const hexP=(r,dx=0,dy=0)=>{const p=[];for(let a=-90;a<270;a+=60){const t=a*Math.PI/180;p.push([c.gx+dx+r*Math.cos(t),c.gy+dy+r*Math.sin(t)]);}return p;};
+  const str=p=>p.map(q=>q[0].toFixed(4)+','+q[1].toFixed(4)).join(' ');
+  const mk=(tag,attrs)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;};
+  const RO=.25, RI=.175;
+  const outerP=hexP(RO), innerP=hexP(RI,-.008,-.012);
+  const h3=mk('g',{class:'h3'});
+  h3.append(mk('polygon',{points:str(hexP(RO,.035,.05)),class:'hsh'}));        // 影
+  for(let k=0;k<6;k++){                                                       // 6つの斜面
+    h3.append(mk('polygon',{points:str([outerP[k],outerP[(k+1)%6],innerP[(k+1)%6],innerP[k]]),class:'bv bv'+k}));
+  }
+  h3.append(mk('polygon',{points:str(innerP),class:'htop'}));                  // 天面
+  h3.append(mk('polygon',{points:str(outerP),class:'hrim'}));                  // 外周の線
+  h3.append(mk('ellipse',{cx:c.gx-.055,cy:c.gy-.075,rx:.11,ry:.05,
+    transform:`rotate(-28 ${c.gx-.055} ${c.gy-.075})`,class:'hspec'}));       // ハイライト
+  h3.append(mk('circle',{cx:c.gx+.075,cy:c.gy+.06,r:.018,class:'hspec2'}));   // 映り込み
+  stone.append(sc,h3);
+  const ring=document.createElementNS(NS,'circle');
+  ring.setAttribute('cx',c.gx);ring.setAttribute('cy',c.gy);ring.setAttribute('r',R_STONE+.05);ring.setAttribute('class','ring');
+  const last=document.createElementNS(NS,'circle');
+  last.setAttribute('cx',c.gx);last.setAttribute('cy',c.gy);last.setAttribute('r',.055);last.setAttribute('class','last');
+  layerCells.append(poly); layerTop.append(dot,stone,ring,last);
+  return {poly,dot,stone,ring,last};
+});
+// 蜂の巣の壁（六角形の枠）を盤の形で切り抜いて描く
+(function buildComb(){
+  const outer=[];
+  for(let a=-90;a<270;a+=60){const r=a*Math.PI/180; outer.push([3*Math.cos(r),3*Math.sin(r)]);}
+  const outerStr=outer.map(p=>p.map(v=>v.toFixed(4)).join(',')).join(' ');
+  const defs=document.createElementNS(NS,'defs'), clip=document.createElementNS(NS,'clipPath');
+  clip.setAttribute('id','boardClip');
+  defs.innerHTML=`
+    <linearGradient id="gTopB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6a4116"/><stop offset=".55" stop-color="#3d240b"/><stop offset="1" stop-color="#1e1004"/></linearGradient>
+    <linearGradient id="gTopW" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#fff3d2"/><stop offset="1" stop-color="#efd394"/></linearGradient>
+    <radialGradient id="gSpec"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".6" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>`;
+  const cp=document.createElementNS(NS,'polygon'); cp.setAttribute('points',outerStr); clip.append(cp); defs.append(clip); svg.prepend(defs);
+  layerComb.setAttribute('clip-path','url(#boardClip)');
+  for(let i=-4;i<=4;i++) for(let j=-4;j<=4;j++){
+    const hx=SQ3*(i+j/2), hy=1.5*j;
+    if(Math.hypot(hx,hy)>4.2) continue;
+    const pts=[];
+    for(let a=-90;a<270;a+=60){const r=a*Math.PI/180; pts.push([hx+Math.cos(r),hy+Math.sin(r)]);}
+    const p=document.createElementNS(NS,'polygon');
+    p.setAttribute('points',pts.map(q=>q.map(v=>v.toFixed(4)).join(',')).join(' '));
+    p.setAttribute('class','comb'); layerComb.append(p);
+  }
+  const edge=document.createElementNS(NS,'polygon');
+  edge.setAttribute('points',outerStr); edge.setAttribute('class','combEdge'); layerTop.prepend(edge);
+})();
+
+let board, turn, history, busy, lastMove, gameOver, previewSet=new Set(), ghost=-1, gameId=0;
+const $=id=>document.getElementById(id);
+const modeSel=$('mode'), levelSel=$('level');
+try{ const m=localStorage.getItem('hexrev-mode'); if(m) modeSel.value=m;
+     const l=localStorage.getItem('hexrev-level'); if(l) levelSel.value=l; }catch(e){}
+// タイトル右の蜂を押すと 蜂の巣スキン ⇔ ふつうの盤面 を切り替え
+const beeBtn=$('bee');
+beeBtn.addEventListener('click',()=>{
+  const on=!document.body.classList.contains('honey');
+  document.body.classList.toggle('honey',on);
+  const label = on ? 'ふつうの盤面に戻す' : '蜂の巣の盤面に切り替え';
+  beeBtn.setAttribute('aria-label',label); beeBtn.title=label;
+  beeBtn.classList.remove('buzz'); void beeBtn.offsetWidth; beeBtn.classList.add('buzz');
+});
+beeBtn.addEventListener('animationend',()=>beeBtn.classList.remove('buzz'));
+
+function cpuColor(){const m=modeSel.value; return m==='cpuW'?2:(m==='cpuB'?1:0);}
+function isCpuTurn(){return !gameOver && cpuColor()===turn;}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function applyRuleText(){
+  $('ruleA').innerHTML='相手の石の辺のうち<b>2つ以上</b>が自分の石になると、その石は自分の色に変わります（盤の外側のマスは辺が2つなので、2つとも）。';
+  $('ruleB').innerHTML='オセロと同じく、<b>列にそって相手の石を挟む</b>とひっくり返ります。列は▲▼が交互に並ぶ帯で、縦と斜め2方向の3方向です。';
+}
+function reset(){
+  gameId++;                       // 進行中のアニメーションやCPUの手番を打ち切る
+  applyRuleText(); previewSet.clear(); ghost=-1;
+  board=G.init.slice(); turn=1; history=[]; busy=false; lastMove=-1; gameOver=false;
+  $('result').classList.remove('show');
+  const cc=cpuColor();
+  $('nameB').textContent = cc===1?'黒（CPU）':(cc===2?'黒（あなた）':'黒');
+  $('nameW').textContent = cc===2?'白（CPU）':(cc===1?'白（あなた）':'白');
+  levelSel.disabled = cc===0;
+  render(); setMsg('');
+  maybeCpu();
+}
+function setMsg(h){$('msg').innerHTML=h;}
+
+function render(){
+  const legal = (!busy && !gameOver && !isCpuTurn()) ? new Set(legalMoves(board)) : new Set();
+  board.forEach((v,i)=>{
+    const e=els[i];
+    const showGhost = i===ghost && v===0;
+    e.stone.setAttribute('visibility', v||showGhost ? 'visible':'hidden');
+    const col = v||turn;
+    e.stone.classList.toggle('b',col===1); e.stone.classList.toggle('w',col===2);
+    e.stone.classList.toggle('ghost',showGhost);
+    e.dot.setAttribute('visibility', legal.has(i)&&!showGhost ? 'visible':'hidden');
+    e.poly.classList.toggle('legal',legal.has(i));
+    e.ring.setAttribute('visibility', previewSet.has(i)?'visible':'hidden');
+    e.last.setAttribute('visibility', i===lastMove && v ? 'visible':'hidden');
+  });
+  const [nb,nw]=count(board);
+  $('numB').textContent=nb; $('numW').textContent=nw;
+  $('sideB').classList.toggle('turn',!gameOver&&turn===1);
+  $('sideW').classList.toggle('turn',!gameOver&&turn===2);
+  $('undo').disabled = busy || undoIndex()<0;
+}
+
+function preview(i){
+  previewSet.clear(); ghost=-1;
+  if(i>=0 && !busy && !gameOver && !isCpuTurn() && legalMoves(board).includes(i)){
+    ghost=i; simulate(board,i,turn).steps.flat().forEach(n=>previewSet.add(n));
+  }
+  render();
+}
+
+function anim(el,cls){el.classList.remove('pop','flip'); void el.getBBox(); el.classList.add(cls);}
+
+async function play(i){
+  const id=gameId;
+  busy=true; previewSet.clear(); ghost=-1;
+  history.push({board:board.slice(),turn,lastMove});
+  const c=turn, r=simulate(board,i,c);
+  board[i]=c; lastMove=i; render(); anim(els[i].stone,'pop');
+  if(r.flips){
+    await sleep(260); if(id!==gameId) return;
+    for(const n of r.steps[0]) anim(els[n].stone,'flip');
+    await sleep(160); if(id!==gameId) return;
+    for(const n of r.steps[0]) board[n]=c;
+    render();
+  }
+  setMsg(r.flips ? `${c===1?'黒':'白'}が ${r.flips}個ひっくり返した` : '');
+  await sleep(r.flips?200:120); if(id!==gameId) return;
+  nextTurn();
+}
+
+function nextTurn(){
+  turn=3-turn;
+  if(!legalMoves(board).length){
+    turn=3-turn;
+    if(!legalMoves(board).length){ return finish(); }
+    setMsg(($('msg').innerHTML?$('msg').innerHTML+'　':'')+`${turn===1?'白':'黒'}は置けないのでパス`);
+  }
+  busy=false; render(); maybeCpu();
+}
+function finish(){
+  gameOver=true; busy=false; render();
+  const [nb,nw]=count(board), cc=cpuColor();
+  let big;
+  if(nb===nw) big='引き分け';
+  else{ const win=nb>nw?1:2;
+    big = cc===0 ? (win===1?'黒の勝ち！':'白の勝ち！') : (win===cc?'CPUの勝ち':'あなたの勝ち！'); }
+  $('resBig').textContent=big; $('resSub').textContent=`黒 ${nb} － 白 ${nw}`;
+  $('result').classList.add('show');
+}
+async function maybeCpu(){
+  if(!isCpuTurn()) return;
+  const id=gameId;
+  busy=true; render();
+  await sleep(450); if(id!==gameId) return;
+  const m=cpuMove(board,turn,+levelSel.value);
+  busy=false;
+  if(m>=0) play(m);
+}
+function onCell(i){
+  if(busy||gameOver||isCpuTurn()) return;
+  if(!legalMoves(board).includes(i)) return;
+  play(i);
+}
+function undoIndex(){
+  const cc=cpuColor();
+  for(let k=history.length-1;k>=0;k--) if(!cc || history[k].turn!==cc) return k;
+  return -1;
+}
+$('undo').addEventListener('click',()=>{
+  if(busy) return;
+  const k=undoIndex(); if(k<0) return;
+  const h=history[k]; history.length=k;
+  board=h.board; turn=h.turn; lastMove=h.lastMove; gameOver=false;
+  previewSet.clear(); ghost=-1;
+  $('result').classList.remove('show'); setMsg(''); render();
+});
+$('reset').addEventListener('click',reset);
+$('again').addEventListener('click',reset);
+modeSel.addEventListener('change',()=>{try{localStorage.setItem('hexrev-mode',modeSel.value)}catch(e){} reset();});
+levelSel.addEventListener('change',()=>{try{localStorage.setItem('hexrev-level',levelSel.value)}catch(e){}});
+reset();
+</script>
+</body>
+</html>
