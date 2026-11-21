@@ -129,10 +129,17 @@
   @keyframes buzz{0%{transform:rotate(0) scale(1)}20%{transform:rotate(-14deg) scale(1.12)}40%{transform:rotate(12deg) scale(1.12)}
     60%{transform:rotate(-8deg) scale(1.06)}80%{transform:rotate(5deg)}100%{transform:rotate(0) scale(1)}}
   @media (prefers-reduced-motion:reduce){.bee svg,.bee .wings{animation:none}}
+/* 作品一覧(TOPページ)に戻るボタン */
+.back-nav{margin:0 0 6px}
+.back-to-list{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border:1px solid var(--line);border-radius:999px;
+  font-family:inherit;font-size:12.5px;line-height:1.5;color:var(--muted);text-decoration:none;transition:color .15s,border-color .15s}
+.back-to-list:hover{color:var(--ink);border-color:var(--muted)}
+.back-to-list:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
 </head>
 <body>
 <div class="wrap">
+<nav class="back-nav"><a class="back-to-list" href="https://yume-towa.github.io/">← 一覧に戻る</a></nav>
 <div class="titlebar">
     <h1>六角形リバーシ</h1>
     <button class="bee" id="bee" aria-label="蜂の巣の盤面に切り替え" title="蜂の巣の盤面に切り替え">
